@@ -20,7 +20,7 @@ Penelitian mengevaluasi:
 ---
 
 ## 📊 Dataset  
-
+Asal dataset ini di scraping dari detik.com secara keseluruhan.
 - Total data: **9.479 subtitle**  
 - Jumlah kelas: **4**  
 - Kelas sangat tidak seimbang → kelas Entertainment hanya 62 data  

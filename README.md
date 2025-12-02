@@ -1,102 +1,117 @@
 # 📰 Klasifikasi Teks Berita Bahasa Indonesia  
-**Perbandingan Model Klasik, Deep Learning (RNN), dan Transfer Learning IndoBERT**
+**Perbandingan Model Klasik, Deep Learning (RNN), dan Transfer Learning IndoBERT + LoRA**
 
-Repositori ini berisi kode dan eksperimen penelitian yang membandingkan:
+Repositori ini berisi kode dan eksperimen penelitian untuk membandingkan performa tiga pendekatan klasifikasi teks berbahasa Indonesia:
 
-- **Model Machine Learning klasik**
-- **Model Deep Learning berbasis RNN**
-- **Model Transfer Learning berbasis IndoBERT**
+- **Model Klasik (Naive Bayes, SVM, Random Forest)**
+- **Model Deep Learning (RNN/GRU)**
+- **Model Transfer Learning IndoBERT (Full Fine-Tuning & LoRA)**
 
-untuk tugas klasifikasi teks subtitle berita berbahasa Indonesia.
-
-Eksperimen mencakup berbagai kombinasi **model** × **representasi fitur**:  
-**BoW**, **TF-IDF**, **Word2Vec**, serta **kombinasi fitur dengan IndoBERT**.
+Dataset berupa subtitle berita dari detik.com yang diklasifikasikan ke empat kategori topik.
 
 ---
 
 ## 🎯 Tujuan Penelitian
 
-Penelitian ini bertujuan untuk:
+- Membandingkan performa model klasik, RNN, dan IndoBERT.
+- Mengukur pengaruh representasi fitur (BoW, TF-IDF, Word2Vec) pada model klasik & RNN.
+- Menganalisis ketidakseimbangan kelas terhadap F1-Macro.
+- Menguji efektivitas **IndoBERT full fine-tuning** dan **IndoBERT dengan LoRA** pada teks berita pendek.
 
-- Menganalisis performa model klasik vs deep learning vs transfer learning.
-- Mengukur pengaruh representasi fitur terhadap performa model.
-- Mengamati dampak ketidakseimbangan kelas terhadap skor macro-F1.
-- Mengkaji perilaku model pada teks pendek (subtitle berita).
-
-Klasifikasi dilakukan ke dalam 4 kategori:
-
-1. **Politics**
-2. **Technology**
-3. **Entertainment**
-4. **Others**
+Klasifikasi mencakup 4 kategori:
+1. Politics  
+2. Technology  
+3. Entertainment  
+4. Others  
 
 ---
 
 ## 📊 Dataset
 
-Dataset diperoleh melalui scraping dari **detik.com**.
+Dataset diperoleh dari scraping subtitle berita **detik.com**.
 
 - Total data: **9.479 subtitle**
-- Jumlah kelas: **4**
-- Distribusi kelas tidak seimbang (kelas *Entertainment* hanya ±62 data)
-- Tahapan preprocessing:
-  - lowercasing  
-  - penghapusan simbol & angka  
+- Kategori: **4 kelas**
+- Distribusi data tidak seimbang
+- Preprocessing:
+  - lowercase  
+  - hapus simbol & angka  
   - tokenisasi  
-  - stopword removal  
+  - stopword removal (NLTK + Sastrawi)  
   - stemming (Sastrawi)
 
 ---
 
-## 🚀 Model yang Diuji
+## 🚀 Model yang Digunakan
 
-### 🔹 Model Klasik
-- **Naive Bayes**
-  - Multinomial
-  - Gaussian
-- **Support Vector Machine**
-  - Linear SVM (LinearSVC)
-- **Random Forest Classifier**
+### 🔹 1. Model Klasik  
+Menggunakan fitur:
+- BoW  
+- TF-IDF  
+- Word2Vec-average  
 
-### 🔹 Model Deep Learning
-- **RNN / GRU** dengan arsitektur sederhana:
-  - Input: vektor fitur (hasil BoW / TF-IDF / Word2Vec average)
-  - Layer RNN (SimpleRNN/GRU)
-  - Dense (ReLU)
-  - Output Softmax
+Model:
+- Naive Bayes  
+- Linear SVM  
+- Random Forest  
 
-### 🔹 Model Transfer Learning (IndoBERT)
+---
 
-Model transfer learning menggunakan:
+### 🔹 2. Model Deep Learning (RNN/GRU)
 
-- **IndoBERT**: `indobenchmark/indobert-base-p1`  
-- Digunakan sebagai **feature extractor**:
-  - Setiap teks di-*tokenize* dengan tokenizer IndoBERT.
-  - Output logits / hidden representation diambil sebagai fitur numerik.
-- Fitur IndoBERT kemudian **digabungkan** dengan:
-  - **BoW**
-  - **TF-IDF**
-  - **Word2Vec (average)**  
-- Klasifikasi dilakukan menggunakan **Logistic Regression** di atas fitur gabungan tersebut.
+Input:  
+- BoW / TF-IDF / Word2Vec  
+
+Arsitektur:  
+- Layer RNN / GRU  
+- Dense  
+- Softmax  
+
+---
+
+### 🔹 3. Model Transfer Learning IndoBERT (Full Fine-Tuning)
+
+- Model: `indobenchmark/indobert-base-p1`
+- Digunakan sebagai **full classifier**
+- Fine-tuning dilakukan end-to-end menggunakan HuggingFace `Trainer`
+- Tidak menggunakan lagi:
+  - BoW
+  - TF-IDF  
+  - Word2Vec  
+  - Logistic Regression  
+- Representasi kontekstual sepenuhnya dihasilkan internal oleh IndoBERT
+
+---
+
+### 🔹 4. **IndoBERT + LoRA (Low-Rank Adaptation)**  
+*Parameter-Efficient Fine-Tuning (PEFT)*
+
+Selain full fine-tuning, penelitian ini juga menerapkan **LoRA** untuk membuat fine-tuning lebih efisien:
+
+- Parameter IndoBERT asli dibekukan (frozen)  
+- LoRA menambahkan matriks ber-rank rendah pada layer Attention (Query & Value)  
+- Hanya ±0.1% parameter yang dilatih  
+- Lebih cepat, hemat GPU, dan lebih stabil pada dataset kecil  
+
+Konfigurasi LoRA yang digunakan:
+- `r = 8`  
+- `alpha = 16`  
+- `lora_dropout = 0.1`  
+- `target_modules = ["query", "value"]`  
+- Task: klasifikasi teks (SEQ_CLS)
+
+Keunggulan LoRA:
+- Latihan lebih cepat daripada full fine-tuning  
+- Risiko overfitting lebih rendah  
+- Performanya tetap kompetitif  
+- Dapat dijalankan pada GPU kecil  
 
 ---
 
 ## 🔧 Representasi Fitur
 
-- **BoW (Bag-of-Words, CountVectorizer)**  
-  Representasi sparse berbasis frekuensi kata.
-
-- **TF-IDF (TfidfVectorizer)**  
-  Memberi bobot lebih pada kata-kata yang jarang tetapi informatif.
-
-- **Word2Vec (Gensim Skip-gram, 300 dimensi, doc-average)**  
-  Kalimat direpresentasikan sebagai rata-rata vektor word embedding.
-
-- **IndoBERT logits (Transfer Learning)**  
-  Representasi kontekstual dari Transformer, kemudian:
-  - Digabung dengan BoW  
-  - Digabung dengan TF-IDF  
-  - Digabung dengan Word2Vec average  
+- **BoW, TF-IDF, Word2Vec** → hanya untuk model klasik & RNN  
+- **IndoBERT / IndoBERT-LoRA full fine-tuning** → tidak menggunakan fitur manual  
 
 ---
 
@@ -104,79 +119,64 @@ Model transfer learning menggunakan:
 
 ### 🔹 Model Klasik
 
-| Model           | Representasi | Accuracy | F1-Macro |
-|-----------------|--------------|----------|----------|
-| NB Multinomial  | BoW          | 0.7127   | 0.5233   |
-| NB Multinomial  | TF-IDF       | 0.6760   | 0.4312   |
-| NB Gaussian     | Word2Vec     | 0.5337   | 0.4262   |
-| Linear SVM      | BoW          | 0.8433   | 0.6891   |
-| Linear SVM      | TF-IDF       | **0.8524** | 0.6695 |
-| Random Forest   | BoW          | **0.8779** | 0.6863 |
-| Random Forest   | TF-IDF       | 0.8731   | 0.6827   |
-| Random Forest   | Word2Vec     | 0.6819   | 0.4638   |
+| Model           | Fitur      | Accuracy | F1-Macro |
+|-----------------|------------|----------|----------|
+| NB Multinomial  | BoW        | 0.7127   | 0.5233   |
+| NB Multinomial  | TF-IDF     | 0.6760   | 0.4312   |
+| NB Gaussian     | Word2Vec   | 0.5337   | 0.4262   |
+| Linear SVM      | BoW        | 0.8433   | 0.6891   |
+| Linear SVM      | TF-IDF     | **0.8524** | 0.6695 |
+| Random Forest   | BoW        | **0.8779** | 0.6863 |
+| Random Forest   | TF-IDF     | 0.8731   | 0.6827 |
+| Random Forest   | Word2Vec   | 0.6819   | 0.4638 |
 
 ---
 
 ### 🔹 Model Deep Learning (RNN)
 
-| Model | Representasi | Accuracy | F1-Macro |
-|-------|--------------|----------|----------|
-| RNN   | BoW          | **0.82** | **0.71** |
-| RNN   | TF-IDF       | 0.79     | 0.66     |
-| RNN   | Word2Vec     | 0.78     | 0.56     |
+| Model | Fitur  | Accuracy | F1-Macro |
+|-------|--------|----------|----------|
+| RNN   | BoW    | **0.82** | **0.71** |
+| RNN   | TF-IDF | 0.79     | 0.66     |
+| RNN   | W2V    | 0.78     | 0.56     |
 
 ---
 
-### 🔹 Model Transfer Learning IndoBERT
+### 🔹 Model Transfer Learning IndoBERT (Full Fine-Tuning)
 
-IndoBERT digunakan sebagai feature extractor, kemudian digabung dengan tiga jenis fitur tradisional. Hasil ringkas:
-
-| Model               | Representasi Gabungan     | Accuracy  | F1-Macro | Catatan Utama                                      |
-|---------------------|---------------------------|-----------|----------|----------------------------------------------------|
-| IndoBERT + BoW      | IndoBERT logits + BoW     | **0.8217** | 0.61    | Kuat di kelas mayoritas, kelas minoritas masih lemah |
-| IndoBERT + TF-IDF   | IndoBERT logits + TF-IDF  | 0.8106    | 0.59    | Mirip BoW, sedikit lebih rendah di kelas Technology |
-| IndoBERT + Word2Vec | IndoBERT logits + W2V avg | **0.6376** | 0.39    | Tidak efektif, sulit memprediksi kelas minoritas    |
+| Model      | Pendekatan           | Accuracy | F1-Macro | Catatan Utama |
+|------------|----------------------|----------|----------|----------------|
+| IndoBERT   | Fine-tuning penuh    | **0.86** | **0.75** | Performa terbaik & paling stabil |
 
 ---
 
-## 🧠 Insight Penting
+### 🔹 Model Transfer Learning IndoBERT + LoRA
 
-1. **BoW adalah representasi paling stabil**  
-   - Memberikan performa konsisten di Naive Bayes, SVM, Random Forest, dan RNN.
-   - Mudah digunakan dan sangat sesuai untuk teks pendek.
+| Model         | Pendekatan | Accuracy | F1-Macro | Catatan Utama |
+|---------------|------------|----------|----------|----------------|
+| IndoBERT-LoRA | PEFT       | Hampir setara IndoBERT full FT | Stabil, training jauh lebih ringan |
 
-2. **Random Forest & Linear SVM unggul di model klasik**  
-   - Random Forest dengan BoW mencapai akurasi tertinggi.
-   - Linear SVM dengan TF-IDF memberikan kombinasi akurasi + stabilitas yang sangat baik.
-
-3. **TF-IDF cocok untuk SVM, tapi tidak selalu untuk RNN**  
-   - TF-IDF meningkatkan performa SVM.
-   - Pada RNN, TF-IDF cenderung menyebabkan overfitting dan menurunkan F1-macro.
-
-4. **Word2Vec average kurang efektif untuk model klasik maupun RNN**  
-   - Rata-rata embedding menghilangkan konteks urutan dan detail semantik level kalimat.
-   - Model kesulitan membedakan kelas minoritas.
-
-5. **RNN tidak optimal karena input bukan sekuens kata sebenarnya**  
-   - RNN di sini bekerja di atas vektor fitur (bukan embedding urutan kata), sehingga keunggulan arsitektur sekuensial tidak termanfaatkan.
-
-6. **Transfer Learning IndoBERT menjanjikan, tapi setup ini belum maksimal**  
-   - IndoBERT + BoW / TF-IDF kompetitif, namun:
-     - Belum mengalahkan Random Forest / SVM terbaik.
-     - Masih lemah di kelas dengan sampel sangat sedikit (misalnya *Entertainment*).
-   - Hal ini wajar karena:
-     - IndoBERT hanya digunakan sebagai **feature extractor**, bukan di-*fine-tune* end-to-end.
-     - Fitur gabungan cenderung berdimensi tinggi (high-dimensional), berpotensi menyebabkan overfitting.
+> LoRA menghasilkan performa yang mendekati IndoBERT full fine-tuning, namun dengan waktu pelatihan lebih cepat dan konsumsi memori lebih rendah.
 
 ---
 
-## 📝 Kesimpulan
+## 🧠 Insight Utama
 
-- **Model klasik (Random Forest dan Linear SVM)** masih menjadi baseline yang sangat kuat untuk klasifikasi subtitle berita pendek.
-- **RNN** dapat mencapai F1-macro yang baik, namun kalah akurasi dan tidak memanfaatkan informasi urutan secara penuh dalam setup ini.
-- **Transfer learning dengan IndoBERT** menunjukkan potensi, terutama bila nanti dikembangkan dengan:
-  - Fine-tuning penuh (bukan sekadar feature extractor)
-  - Penanganan ketidakseimbangan kelas (class weighting, oversampling)
-  - Arsitektur khusus untuk teks pendek dan multi-class imbalance.
+- **BoW** adalah fitur paling stabil untuk model klasik & RNN.  
+- **Random Forest & SVM** unggul pada pendekatan klasik.  
+- **Word2Vec-average** kurang efektif karena menghilangkan konteks.  
+- **IndoBERT full fine-tuning** memberikan performa terbaik secara keseluruhan.  
+- **IndoBERT-LoRA** sangat efisien dan cocok untuk dataset kecil tanpa kehilangan banyak akurasi.
 
 ---
+
+## 🛠️ XAI (Explainable AI)
+
+Metode interpretasi yang digunakan:
+
+- **SHAP** → untuk model klasik  
+  (menjelaskan kontribusi kata pada BoW/TF-IDF/W2V)  
+- **LIME** → untuk model RNN  
+- **LIME** → untuk IndoBERT dan IndoBERT-LoRA  
+
+XAI membantu mengetahui kata atau frasa apa yang paling memengaruhi prediksi model.
